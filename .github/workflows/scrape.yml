@@ -38,9 +38,6 @@ jobs:
 
       - name: Push Dataset to Kaggle
         env:
-          KAGGLE_KEY: ${{ secrets.KAGGLE_API_TOKEN }}
-          KAGGLE_USERNAME: "unused"
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
         run: |
-          export KAGGLE_KEY="${KAGGLE_KEY}"
-          export KAGGLE_USERNAME="${KAGGLE_USERNAME}"
           kaggle datasets version -p ./data -m "Automated update via GitHub Actions" --dir-mode zip || kaggle datasets create -p ./data
