@@ -3,9 +3,12 @@ import requests
 import pandas as pd
 from bs4 import BeautifulSoup
 from datetime import datetime
+import os
+
+SCRAPERAPI_KEY = os.getenv("SCRAPERAPI_KEY", "DEFAULT_FALLBACK_KEY")
 
 # Replace with your actual ScraperAPI key
-SCRAPERAPI_KEY = "YOUR_ACTUAL_SCRAPERAPI_KEY"
+SCRAPERAPI_KEY = "66c1a5e522552969cd9fa1fc839fa0aa"
 
 def fetch_via_scraperapi(target_url):
     payload = {
