@@ -1,0 +1,13 @@
+{
+    "title": "Tribes India Product Dataset",
+    "last_updated": "2026-09-14 06:19:35 UTC",
+    "total_records": 20,
+    "columns": [
+        "title",
+        "price_inr",
+        "description",
+        "product_url"
+    ],
+    "description": "Scraped product catalog data from Tribes India for research.",
+    "source_url": "https://tribesindia.com"
+}
