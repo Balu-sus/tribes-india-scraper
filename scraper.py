@@ -6,153 +6,126 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept-Language": "en-US,en;q=0.9"
 }
 
 def find_next_page_link(soup, base_url):
-    """
-    Looks for standard HTML elements used for 'Next' page buttons.
-    """
     next_btn = (
         soup.find("a", rel="next") or
         soup.find("a", class_=lambda c: c and "next" in c.lower() if c else False) or
         soup.find("a", string=lambda s: s and ("next" in s.lower() or ">" in s) if s else False)
     )
-    
     if next_btn and next_btn.get("href"):
         next_url = next_btn["href"]
         if not next_url.startswith("http"):
-            # Construct full absolute URL
-            if next_url.startswith("/"):
-                return base_url.rstrip("/") + next_url
-            return base_url.rstrip("/") + "/" + next_url
+            return base_url.rstrip("/") + ("/" + next_url.lstrip("/"))
         return next_url
     return None
 
-
-# --- 1. TRIBES INDIA (NEXT BUTTON) ---
-def scrape_tribes_india():
+# --- 1. DIRECT PLATFORMS (Tribes India, India Handmade) ---
+def scrape_direct_stores():
     products = []
+    
+    # Tribes India
     current_url = "https://tribesindia.com/category/food-natural-products"
     base_url = "https://tribesindia.com"
     page = 1
-
-    print("Scraping Tribes India via Next Button...")
-
-    while current_url:
-        print(f"Scraping Page {page}: {current_url}")
+    
+    while current_url and page <= 5:
         try:
             res = requests.get(current_url, headers=HEADERS, timeout=15)
             if res.status_code != 200:
-                print(f"Failed to fetch page. Status code: {res.status_code}")
                 break
-
             soup = BeautifulSoup(res.text, "html.parser")
             items = soup.find_all("div", class_="product-layout") or soup.find_all("div", class_="product-thumb")
-
-            if not items:
-                print("No items found on this page.")
-                break
-
+            
             for item in items:
                 title_elem = item.find("h4") or item.find("a", class_="product-title")
                 title = title_elem.get_text(strip=True) if title_elem else "N/A"
-
                 link_elem = item.find("a", href=True)
-                product_url = link_elem["href"] if link_elem else "N/A"
-                if product_url != "N/A" and not product_url.startswith("http"):
-                    product_url = base_url.rstrip("/") + "/" + product_url.lstrip("/")
-
+                url = link_elem["href"] if link_elem else "N/A"
+                if url != "N/A" and not url.startswith("http"):
+                    url = base_url.rstrip("/") + "/" + url.lstrip("/")
                 price_elem = item.find("span", class_="price-new") or item.find("span", class_="price")
-                orig_price_elem = item.find("span", class_="price-old")
-
-                price = price_elem.get_text(strip=True) if price_elem else None
-                orig_price = orig_price_elem.get_text(strip=True) if orig_price_elem else price
-
+                price = price_elem.get_text(strip=True) if price_elem else "N/A"
+                
                 products.append({
-                    "platform": "Tribes India",
+                    "platform": "Tribes India Store",
                     "title": title,
                     "price_inr": price,
-                    "original_price_inr": orig_price,
-                    "product_url": product_url,
+                    "product_url": url,
                     "last_updated": datetime.now().strftime("%Y-%m-%d")
                 })
-
-            # Find next page link using DOM inspection
             current_url = find_next_page_link(soup, base_url)
             page += 1
             time.sleep(1)
-
         except Exception as e:
-            print(f"Error on page {page}: {e}")
+            print(f"Error scraping Tribes India: {e}")
             break
 
-    return products
+    return pd.DataFrame(products)
 
 
-# --- 2. INDIA HANDMADE (NEXT BUTTON) ---
-def scrape_india_handmade():
-    products = []
-    current_url = "https://indiahandmade.com/collections/handicrafts"
-    base_url = "https://indiahandmade.com"
-    page = 1
-
-    print("Scraping India Handmade via Next Button...")
-
-    while current_url:
-        print(f"Scraping Page {page}: {current_url}")
-        try:
-            res = requests.get(current_url, headers=HEADERS, timeout=15)
-            if res.status_code != 200:
-                break
-
-            soup = BeautifulSoup(res.text, "html.parser")
-            items = soup.find_all("div", class_="product-card") or soup.find_all("li", class_="grid__item")
-
-            if not items:
-                break
-
-            for item in items:
-                title_elem = item.find("a", class_="full-unstyled-link") or item.find("h3")
-                title = title_elem.get_text(strip=True) if title_elem else "N/A"
-
-                link_elem = item.find("a", href=True)
-                product_url = link_elem["href"] if link_elem else "N/A"
-                if product_url != "N/A" and not product_url.startswith("http"):
-                    product_url = base_url.rstrip("/") + "/" + product_url.lstrip("/")
-
-                price_elem = item.find("span", class_="price-item--sale") or item.find("span", class_="price-item--regular")
-                price = price_elem.get_text(strip=True) if price_elem else None
-
-                products.append({
-                    "platform": "India Handmade",
-                    "title": title,
-                    "price_inr": price,
-                    "original_price_inr": price,
-                    "product_url": product_url,
-                    "last_updated": datetime.now().strftime("%Y-%m-%d")
-                })
-
-            current_url = find_next_page_link(soup, base_url)
-            page += 1
-            time.sleep(1)
-
-        except Exception as e:
-            print(f"Error on page {page}: {e}")
-            break
-
-    return products
-
-
-# --- MAIN RUNNER ---
-def run_all_scrapers():
-    all_data = []
-    all_data.extend(scrape_tribes_india())
-    all_data.extend(scrape_india_handmade())
+# --- 2. AMAZON & FLIPKART SCRAPER ---
+def scrape_amazon_flipkart():
+    marketplace_products = []
     
-    df_new = pd.DataFrame(all_data)
-    return df_new
+    # Define targeted search terms for Tribes India on Flipkart & Amazon
+    search_queries = [
+        {"platform": "Flipkart", "url": "https://www.flipkart.com/search?q=tribes+india"},
+        {"platform": "Amazon", "url": "https://www.amazon.in/s?k=tribes+india"}
+    ]
+    
+    for search in search_queries:
+        platform = search["platform"]
+        url = search["url"]
+        print(f"Scraping {platform} listings...")
+        
+        try:
+            res = requests.get(url, headers=HEADERS, timeout=15)
+            if res.status_code == 200:
+                soup = BeautifulSoup(res.text, "html.parser")
+                
+                if platform == "Flipkart":
+                    items = soup.find_all("div", class_="_1AtVbE") or soup.find_all("div", class_="_1xHG2k")
+                    for item in items[:15]:
+                        title = item.find("a", class_="IRwbT7") or item.find("div", class_="_30jeq3")
+                        price = item.find("div", class_="_30jeq3")
+                        link = item.find("a", href=True)
+                        if title:
+                            p_url = "https://www.flipkart.com" + link["href"] if link else url
+                            marketplace_products.append({
+                                "platform": "Flipkart",
+                                "title": title.get_text(strip=True),
+                                "price_inr": price.get_text(strip=True) if price else "N/A",
+                                "product_url": p_url,
+                                "last_updated": datetime.now().strftime("%Y-%m-%d")
+                            })
 
-if __name__ == "__main__":
-    df = run_all_scrapers()
-    print(f"Extracted a total of {len(df)} products across platforms.")
+                elif platform == "Amazon":
+                    items = soup.find_all("div", {"data-component-type": "s-search-result"})
+                    for item in items[:15]:
+                        title = item.find("h2")
+                        price = item.find("span", class_="a-price-whole")
+                        link = item.find("a", class_="a-link-normal", href=True)
+                        if title:
+                            p_url = "https://www.amazon.in" + link["href"] if link else url
+                            marketplace_products.append({
+                                "platform": "Amazon",
+                                "title": title.get_text(strip=True),
+                                "price_inr": f"₹{price.get_text(strip=True)}" if price else "N/A",
+                                "product_url": p_url,
+                                "last_updated": datetime.now().strftime("%Y-%m-%d")
+                            })
+            time.sleep(2)
+        except Exception as e:
+            print(f"Error fetching {platform}: {e}")
+
+    return pd.DataFrame(marketplace_products)
+
+
+def run_all_scrapers():
+    df_direct = scrape_direct_stores()
+    df_marketplaces = scrape_amazon_flipkart()
+    return df_direct, df_marketplaces
