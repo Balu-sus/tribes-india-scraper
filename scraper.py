@@ -1,135 +1,122 @@
 import os
-import re
 import time
-import json
-import pandas as pd
 import requests
+import pandas as pd
 from bs4 import BeautifulSoup
-from datetime import datetime, timezone
+from datetime import datetime
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
-BASE_URL = "https://tribesindia.com"
 
-def get_product_urls(category_url):
-    """Fetches product page links directly from a valid category listing."""
-    product_urls = set()
-    try:
-        response = requests.get(category_url, headers=HEADERS, timeout=15)
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.content, "html.parser")
-            for a in soup.find_all("a", href=True):
-                href = a["href"]
-                if any(keyword in href for keyword in ["/product/"]):
-                    full_url = href if href.startswith("http") else BASE_URL + href
-                    product_urls.add(full_url)
-    except Exception as e:
-        print(f"Error fetching category {category_url}: {e}")
-    return list(product_urls)
-
-def get_product_details(product_url):
-    """Extracts clean title, price, and description from a product page."""
-    try:
-        response = requests.get(product_url, headers=HEADERS, timeout=15)
-        if response.status_code != 200:
-            return None
-        
-        soup = BeautifulSoup(response.content, "html.parser")
-
-        # 1. Clean Title Extraction (avoiding 'Add to wishlist' headers)
-        title_text = None
-        for h1 in soup.find_all("h1"):
-            text = h1.text.strip()
-            if text and "wishlist" not in text.lower():
-                title_text = text
+# --- 1. TRIBES INDIA SCRAPER ---
+def scrape_tribes_india():
+    products = []
+    page = 1
+    base_url = "https://tribesindia.com"
+    
+    print("Scraping Tribes India...")
+    while True:
+        url = f"https://tribesindia.com/category/food-natural-products?page={page}"
+        try:
+            res = requests.get(url, headers=HEADERS, timeout=15)
+            if res.status_code != 200:
                 break
-        
-        if not title_text:
-            meta_title = soup.find("meta", property="og:title")
-            if meta_title and meta_title.get("content"):
-                title_text = meta_title["content"].replace("- Tribes India", "").strip()
+            
+            soup = BeautifulSoup(res.text, "html.parser")
+            items = soup.find_all("div", class_="product-layout") or soup.find_all("div", class_="product-thumb")
+            
+            if not items:
+                break
+                
+            for item in items:
+                title_elem = item.find("h4") or item.find("a", class_="product-title")
+                title = title_elem.get_text(strip=True) if title_elem else "N/A"
+                
+                link_elem = item.find("a", href=True)
+                product_url = link_elem["href"] if link_elem else "N/A"
+                if product_url != "N/A" and not product_url.startswith("http"):
+                    product_url = base_url + product_url
 
-        # 2. Extract Prices (Handles encoded currency symbols like â‚ą / ã‚¿ / ₹)
-        raw_text = soup.get_text()
-        prices = re.findall(r"(?:â‚ą|ã‚¿|₹|\$)\s*([\d\.,]+)", raw_text)
-        
-        cleaned_prices = []
-        for p in prices:
-            try:
-                val = float(p.replace(",", ""))
-                if val > 0:
-                    cleaned_prices.append(val)
-            except ValueError:
-                continue
+                price_elem = item.find("span", class_="price-new") or item.find("span", class_="price")
+                orig_price_elem = item.find("span", class_="price-old")
 
-        discounted_price = cleaned_prices[0] if cleaned_prices else None
-        original_price = cleaned_prices[1] if len(cleaned_prices) > 1 else discounted_price
+                price = price_elem.get_text(strip=True) if price_elem else None
+                orig_price = orig_price_elem.get_text(strip=True) if orig_price_elem else price
 
-        # 3. Clean Description Extraction
-        desc_elem = soup.find("div", class_=re.compile(r"description|detail|summary", re.I)) or soup.find("section", id=re.compile(r"description", re.I))
-        desc_text = desc_elem.text.strip() if desc_elem else None
+                products.append({
+                    "platform": "Tribes India",
+                    "title": title,
+                    "price_inr": price,
+                    "original_price_inr": orig_price,
+                    "product_url": product_url,
+                    "last_updated": datetime.now().strftime("%Y-%m-%d")
+                })
+            page += 1
+            time.sleep(1)
+        except Exception as e:
+            print(f"Error scraping Tribes India page {page}: {e}")
+            break
+            
+    return products
 
-        if title_text or discounted_price:
-            return {
-                "title": title_text,
-                "price_inr": discounted_price,
-                "original_price_inr": original_price,
-                "description": desc_text,
-                "product_url": product_url
-            }
-    except Exception as e:
-        print(f"Error scraping product {product_url}: {e}")
-    return None
-
-def save_dataset_and_metadata(scraped_data):
-    """Saves output files cleanly to the data/ directory."""
-    os.makedirs("data", exist_ok=True)
+# --- 2. INDIA HANDMADE SCRAPER ---
+def scrape_india_handmade():
+    products = []
+    page = 1
+    base_url = "https://indiahandmade.com"
     
-    df = pd.DataFrame(scraped_data if scraped_data else [])
+    print("Scraping India Handmade...")
+    while True:
+        url = f"https://indiahandmade.com/collections/handicrafts?page={page}"
+        try:
+            res = requests.get(url, headers=HEADERS, timeout=15)
+            if res.status_code != 200:
+                break
+                
+            soup = BeautifulSoup(res.text, "html.parser")
+            items = soup.find_all("div", class_="product-card") or soup.find_all("li", class_="grid__item")
+            
+            if not items:
+                break
+                
+            for item in items:
+                title_elem = item.find("a", class_="full-unstyled-link") or item.find("h3")
+                title = title_elem.get_text(strip=True) if title_elem else "N/A"
+                
+                link_elem = item.find("a", href=True)
+                product_url = link_elem["href"] if link_elem else "N/A"
+                if product_url != "N/A" and not product_url.startswith("http"):
+                    product_url = base_url + product_url
+
+                price_elem = item.find("span", class_="price-item--sale") or item.find("span", class_="price-item--regular")
+                price = price_elem.get_text(strip=True) if price_elem else None
+
+                products.append({
+                    "platform": "India Handmade",
+                    "title": title,
+                    "price_inr": price,
+                    "original_price_inr": price,
+                    "product_url": product_url,
+                    "last_updated": datetime.now().strftime("%Y-%m-%d")
+                })
+            page += 1
+            time.sleep(1)
+        except Exception as e:
+            print(f"Error scraping India Handmade page {page}: {e}")
+            break
+            
+    return products
+
+# --- 3. MAIN RUNNER ---
+def run_all_scrapers():
+    all_data = []
+    all_data.extend(scrape_tribes_india())
+    all_data.extend(scrape_india_handmade())
     
-    # Save CSV
-    csv_path = os.path.join("data", "tribes_india_products.csv")
-    df.to_csv(csv_path, index=False, encoding="utf-8")
-    
-    # Save Metadata
-    metadata = {
-        "title": "Tribes India Product Dataset",
-        "last_updated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
-        "total_records": len(df),
-        "columns": list(df.columns) if not df.empty else ["title", "price_inr", "original_price_inr", "description", "product_url"],
-        "description": "Scraped product catalog data from Tribes India for research.",
-        "source_url": "https://tribesindia.com"
-    }
-    
-    meta_path = os.path.join("data", "metadata.json")
-    with open(meta_path, "w", encoding="utf-8") as f:
-        json.dump(metadata, f, indent=4)
-        
-    print(f"Successfully generated {csv_path} with {len(df)} records.")
+    df_new = pd.DataFrame(all_data)
+    return df_new
 
 if __name__ == "__main__":
-    category_urls = [
-        "https://tribesindia.com/category/vandhan-naturals",
-        "https://tribesindia.com/category/clothing-fabrics",
-        "https://tribesindia.com/category/tribal-paintings"
-    ]
-    
-    scraped_data = []
-
-    print("Gathering product URLs...")
-    all_product_urls = set()
-    for cat_url in category_urls:
-        urls = get_product_urls(cat_url)
-        all_product_urls.update(urls)
-        time.sleep(1)
-
-    print(f"Found {len(all_product_urls)} products. Starting detail extraction...")
-
-    for url in list(all_product_urls)[:30]:
-        details = get_product_details(url)
-        if details:
-            scraped_data.append(details)
-        time.sleep(1)
-
-    save_dataset_and_metadata(scraped_data)
+    df = run_all_scrapers()
+    print(f"Scraped total {len(df)} products across platforms.")
