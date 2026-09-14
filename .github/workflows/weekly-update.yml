@@ -28,7 +28,7 @@ jobs:
           pip install pandas requests beautifulsoup4
 
       - name: Run update script
-        run: python update_products.py
+        run: python update_product.py
 
       - name: Commit and push updated CSV
         run: |
