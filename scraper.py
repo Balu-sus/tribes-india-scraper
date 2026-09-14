@@ -21,8 +21,7 @@ def get_product_urls(category_url):
             soup = BeautifulSoup(response.content, "html.parser")
             for a in soup.find_all("a", href=True):
                 href = a["href"]
-                # Match common e-commerce product URL patterns
-                if any(keyword in href for keyword in ["/product/", "/products/", "/item/", "/p/"]):
+                if any(keyword in href for keyword in ["/product/"]):
                     full_url = href if href.startswith("http") else BASE_URL + href
                     product_urls.add(full_url)
     except Exception as e:
@@ -30,7 +29,7 @@ def get_product_urls(category_url):
     return list(product_urls)
 
 def get_product_details(product_url):
-    """Extracts product details from an individual product page."""
+    """Extracts clean title, price, and description from a product page."""
     try:
         response = requests.get(product_url, headers=HEADERS, timeout=15)
         if response.status_code != 200:
@@ -38,25 +37,44 @@ def get_product_details(product_url):
         
         soup = BeautifulSoup(response.content, "html.parser")
 
-        title_elem = soup.find("h1") or soup.find(class_=re.compile(r"title|product-name", re.I))
-        title_text = title_elem.text.strip() if title_elem else None
+        # 1. Clean Title Extraction (avoiding 'Add to wishlist' headers)
+        title_text = None
+        for h1 in soup.find_all("h1"):
+            text = h1.text.strip()
+            if text and "wishlist" not in text.lower():
+                title_text = text
+                break
+        
+        if not title_text:
+            meta_title = soup.find("meta", property="og:title")
+            if meta_title and meta_title.get("content"):
+                title_text = meta_title["content"].replace("- Tribes India", "").strip()
 
-        price_elem = soup.find(class_=re.compile(r"price|amount|current-price", re.I))
-        price_val = None
-        if price_elem:
-            raw_price = re.sub(r"[^\d.]", "", price_elem.text.strip())
+        # 2. Extract Prices (Handles encoded currency symbols like â‚ą / ã‚¿ / ₹)
+        raw_text = soup.get_text()
+        prices = re.findall(r"(?:â‚ą|ã‚¿|₹|\$)\s*([\d\.,]+)", raw_text)
+        
+        cleaned_prices = []
+        for p in prices:
             try:
-                price_val = float(raw_price)
+                val = float(p.replace(",", ""))
+                if val > 0:
+                    cleaned_prices.append(val)
             except ValueError:
-                price_val = None
+                continue
 
+        discounted_price = cleaned_prices[0] if cleaned_prices else None
+        original_price = cleaned_prices[1] if len(cleaned_prices) > 1 else discounted_price
+
+        # 3. Clean Description Extraction
         desc_elem = soup.find("div", class_=re.compile(r"description|detail|summary", re.I)) or soup.find("section", id=re.compile(r"description", re.I))
         desc_text = desc_elem.text.strip() if desc_elem else None
 
-        if title_text or price_val:
+        if title_text or discounted_price:
             return {
                 "title": title_text,
-                "price_inr": price_val,
+                "price_inr": discounted_price,
+                "original_price_inr": original_price,
                 "description": desc_text,
                 "product_url": product_url
             }
@@ -65,22 +83,21 @@ def get_product_details(product_url):
     return None
 
 def save_dataset_and_metadata(scraped_data):
-    """Saves output files to the data/ folder."""
+    """Saves output files cleanly to the data/ directory."""
     os.makedirs("data", exist_ok=True)
     
-    # Create DataFrame even if empty to ensure the file is generated
     df = pd.DataFrame(scraped_data if scraped_data else [])
     
-    # 1. Always write CSV
+    # Save CSV
     csv_path = os.path.join("data", "tribes_india_products.csv")
     df.to_csv(csv_path, index=False, encoding="utf-8")
     
-    # 2. Always write Metadata
+    # Save Metadata
     metadata = {
         "title": "Tribes India Product Dataset",
         "last_updated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
         "total_records": len(df),
-        "columns": list(df.columns) if not df.empty else ["title", "price_inr", "description", "product_url"],
+        "columns": list(df.columns) if not df.empty else ["title", "price_inr", "original_price_inr", "description", "product_url"],
         "description": "Scraped product catalog data from Tribes India for research.",
         "source_url": "https://tribesindia.com"
     }
@@ -89,10 +106,9 @@ def save_dataset_and_metadata(scraped_data):
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(metadata, f, indent=4)
         
-    print(f"File write complete: {len(df)} records saved to {csv_path}")
+    print(f"Successfully generated {csv_path} with {len(df)} records.")
 
 if __name__ == "__main__":
-    # Real category endpoints on Tribes India
     category_urls = [
         "https://tribesindia.com/category/vandhan-naturals",
         "https://tribesindia.com/category/clothing-fabrics",
@@ -110,7 +126,7 @@ if __name__ == "__main__":
 
     print(f"Found {len(all_product_urls)} products. Starting detail extraction...")
 
-    for url in list(all_product_urls)[:20]: # Limits to 20 for initial testing
+    for url in list(all_product_urls)[:30]:
         details = get_product_details(url)
         if details:
             scraped_data.append(details)
