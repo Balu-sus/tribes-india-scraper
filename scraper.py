@@ -69,6 +69,14 @@ def scrape_direct_stores():
 
 # --- 2. AMAZON & FLIPKART SCRAPER ---
 def scrape_amazon_flipkart():
+
+    API_KEY = "66c1a5e522552969cd9fa1fc839fa0aa"
+
+def fetch_protected_url(target_url):
+    payload = {'api_key': API_KEY, 'url': target_url}
+    response = requests.get('http://api.scraperapi.com', params=payload, timeout=30)
+    return response.text if response.status_code == 200 else None
+    
     marketplace_products = []
     
     # Define targeted search terms for Tribes India on Flipkart & Amazon
