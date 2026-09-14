@@ -2,8 +2,8 @@ name: Automated Web Scraper & Kaggle Sync
 
 on:
   schedule:
-    - cron: '0 0 * * 0' # Runs every Sunday
-  workflow_dispatch:     # Allows manual trigger button
+    - cron: '0 0 * * 0' # Runs automatically every Sunday
+  workflow_dispatch:     # Enables the manual "Run workflow" button in GitHub
 
 jobs:
   scrape-and-publish:
@@ -38,7 +38,9 @@ jobs:
 
       - name: Push Dataset to Kaggle
         env:
-          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
-          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
         run: |
+          mkdir -p ~/.kaggle
+          echo "$KAGGLE_API_TOKEN" > ~/.kaggle/access_token
+          chmod 600 ~/.kaggle/access_token
           kaggle datasets version -p ./data -m "Automated update via GitHub Actions" --dir-mode zip || kaggle datasets create -p ./data
