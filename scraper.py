@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
-# Setup paths
+# Setup directory paths
 DATA_DIR = "data"
 IMAGE_DIR = "images"
 CSV_FILE_PATH = os.path.join(DATA_DIR, "tribes_india_products.csv")
@@ -33,7 +33,7 @@ FOOD_KEYWORDS = {
 }
 
 def extract_price(card) -> str:
-    """Robust price extractor searching multiple price selectors and currency patterns."""
+    """Robust price extractor searching price elements and currency patterns."""
     price_elem = (
         card.find(class_=lambda c: c and any(p in c.lower() for p in ["price", "amount", "cost"])) or
         card.find("ins") or 
@@ -50,7 +50,38 @@ def extract_price(card) -> str:
     if num_match:
         return f"₹{num_match.group(0)}"
         
-    return "N/A"
+    return None
+
+def extract_image_url(card, base_url: str) -> str:
+    """Extracts valid image URL from img tags, handling lazy-loading attributes."""
+    img_elem = card.find("img")
+    if not img_elem:
+        return None
+    
+    # Check standard and lazy-load attributes
+    src = (
+        img_elem.get("src") or 
+        img_elem.get("data-src") or 
+        img_elem.get("data-lazy-src") or 
+        img_elem.get("data-srcset")
+    )
+    
+    if not src:
+        return None
+    
+    # If srcset contains multiple images, pick the first URL
+    if " " in src:
+        src = src.split()[0]
+
+    # Ignore placeholder SVG/data URLs
+    if src.startswith("data:image"):
+        return None
+
+    full_url = urljoin(base_url, src)
+    if full_url.startswith("http://") or full_url.startswith("https://"):
+        return full_url
+        
+    return None
 
 def is_valid_item(title: str) -> bool:
     text = title.lower().strip()
@@ -95,38 +126,36 @@ def run_scraper():
             if not is_valid_item(title):
                 continue
 
+            # Strict check: Extract price & image
             price = extract_price(card)
+            image_url = extract_image_url(card, cat_url)
 
-            img_elem = card.find("img")
-            image_url = None
-            if img_elem:
-                image_url = img_elem.get("src") or img_elem.get("data-src")
-                if image_url:
-                    image_url = urljoin(cat_url, image_url)
+            # DISCARD ITEM IF PRICE OR IMAGE IS MISSING
+            if not price or not image_url:
+                continue
 
-            local_image_path = None
-            if image_url:
-                clean_title = "".join(c for c in title if c.isalnum() or c in (" ", "_")).rstrip()
-                filename = f"{clean_title.replace(' ', '_')[:25]}.jpg"
-                local_image_path = os.path.join(IMAGE_DIR, filename)
+            # Save image locally
+            clean_title = "".join(c for c in title if c.isalnum() or c in (" ", "_")).rstrip()
+            filename = f"{clean_title.replace(' ', '_')[:25]}.jpg"
+            local_image_path = os.path.join(IMAGE_DIR, filename)
 
-                try:
-                    img_bytes = requests.get(image_url, headers=headers, timeout=10).content
-                    with open(local_image_path, "wb") as f:
-                        f.write(img_bytes)
-                except Exception:
-                    local_image_path = None
+            try:
+                img_bytes = requests.get(image_url, headers=headers, timeout=10).content
+                with open(local_image_path, "wb") as f:
+                    f.write(img_bytes)
+            except Exception:
+                local_image_path = ""
 
             scraped_products.append({
                 "title": title,
                 "price": price,
                 "category_url": cat_url,
-                "original_image_url": image_url or "",
-                "local_image_path": local_image_path or ""
+                "original_image_url": image_url,
+                "local_image_path": local_image_path
             })
 
     if not scraped_products:
-        print("No products found to save.")
+        print("No complete products (with both price and image) were found.")
         return
 
     # Write CSV dataset
@@ -146,7 +175,7 @@ def run_scraper():
         "last_updated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
         "total_records": len(scraped_products),
         "columns": fieldnames,
-        "description": "Scraped catalog data from Tribes India focusing on arts, crafts, and jewelry.",
+        "description": "Scraped catalog data from Tribes India containing strictly complete items with both price and image.",
         "source_url": "https://tribesindia.com"
     }
     with open(METADATA_JSON, "w", encoding="utf-8") as f:
@@ -161,7 +190,7 @@ def run_scraper():
     with open(DATASET_METADATA_JSON, "w", encoding="utf-8") as f:
         json.dump(dataset_metadata, f, indent=4)
 
-    print(f"Successfully updated dataset with {len(scraped_products)} items.")
+    print(f"Successfully saved {len(scraped_products)} complete items.")
 
 if __name__ == "__main__":
     run_scraper()
