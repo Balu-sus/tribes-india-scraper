@@ -13,7 +13,7 @@ DATASET_METADATA_JSON = "dataset-metadata.json"
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(IMAGE_DIR, exist_ok=True)
 
-# Curated prototype dataset strictly for Arts, Crafts, and Jewelry
+# Curated prototype dataset strictly for Arts, Crafts, and Jewelry (16 Items)
 PROTOTYPE_DATASET = [
     {
         "title": "Dokra Brass Tribal Horse Figurine",
@@ -70,6 +70,62 @@ PROTOTYPE_DATASET = [
         "category_url": "https://tribesindia.com/category/metal-crafts",
         "original_image_url": "https://images.unsplash.com/photo-1567225557594-88d73e55f2cb?w=500",
         "local_image_path": "images/wooden_mask.jpg"
+    },
+    {
+        "title": "Silver Tribal Oxidized Earrings",
+        "price": "₹950",
+        "category_url": "https://tribesindia.com/category/jewellery",
+        "original_image_url": "https://images.unsplash.com/photo-1630019852942-f89202989a59?w=500",
+        "local_image_path": "images/oxidized_earrings.jpg"
+    },
+    {
+        "title": "Blue Pottery Decorative Wall Plate",
+        "price": "₹1,250",
+        "category_url": "https://tribesindia.com/category/pottery",
+        "original_image_url": "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=500",
+        "local_image_path": "images/blue_pottery_plate.jpg"
+    },
+    {
+        "title": "Handwoven Cane Flower Vase",
+        "price": "₹780",
+        "category_url": "https://tribesindia.com/category/cane-bamboo-crafts",
+        "original_image_url": "https://images.unsplash.com/photo-1612196808214-b7e239e5f6b7?w=500",
+        "local_image_path": "images/cane_vase.jpg"
+    },
+    {
+        "title": "Madhubani Handmade Canvas Art",
+        "price": "₹2,600",
+        "category_url": "https://tribesindia.com/category/tribal-paintings",
+        "original_image_url": "https://images.unsplash.com/photo-1579783901586-d88272d0058c?w=500",
+        "local_image_path": "images/madhubani_art.jpg"
+    },
+    {
+        "title": "Dokra Metal Peacock Figurine",
+        "price": "₹1,890",
+        "category_url": "https://tribesindia.com/category/metal-crafts",
+        "original_image_url": "https://images.unsplash.com/photo-1569172122301-bc5008bc09c5?w=500",
+        "local_image_path": "images/dokra_peacock.jpg"
+    },
+    {
+        "title": "Handcrafted Tribal Brass Bangle",
+        "price": "₹620",
+        "category_url": "https://tribesindia.com/category/jewellery",
+        "original_image_url": "https://images.unsplash.com/photo-1611591475140-109405d15a99?w=500",
+        "local_image_path": "images/brass_bangle.jpg"
+    },
+    {
+        "title": "Terracotta Earthen Tea Set",
+        "price": "₹1,350",
+        "category_url": "https://tribesindia.com/category/pottery",
+        "original_image_url": "https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=500",
+        "local_image_path": "images/earthen_tea_set.jpg"
+    },
+    {
+        "title": "Handmade Bamboo Pen Stand",
+        "price": "₹450",
+        "category_url": "https://tribesindia.com/category/cane-bamboo-crafts",
+        "original_image_url": "https://images.unsplash.com/photo-1584727638096-042c45049ebe?w=500",
+        "local_image_path": "images/bamboo_pen_stand.jpg"
     }
 ]
 
