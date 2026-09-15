@@ -1,9 +1,9 @@
 {
-  "title": "Tribes India Product Dataset",
-  "id": "rokiann/tribes-india-product-dataset",
-  "licenses": [
-    {
-      "name": "CC0-1.0"
-    }
-  ]
+    "title": "Tribes India Art & Crafts Dataset",
+    "id": "rokiann/tribes-india-product-dataset",
+    "licenses": [
+        {
+            "name": "CC0-1.0"
+        }
+    ]
 }
