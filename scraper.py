@@ -1,96 +1,111 @@
-import time
-import requests
-import pandas as pd
-from bs4 import BeautifulSoup
-from datetime import datetime
 import os
+import json
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin
 
-SCRAPERAPI_KEY = os.getenv("SCRAPERAPI_KEY", "DEFAULT_FALLBACK_KEY")
+# Local file configuration
+IMAGE_DIR = "images"
+DATA_FILE = "tribes_art_products.json"
+os.makedirs(IMAGE_DIR, exist_ok=True)
 
-# Replace with your actual ScraperAPI key
-SCRAPERAPI_KEY = "66c1a5e522552969cd9fa1fc839fa0aa"
+# Target ONLY Art/Craft/Jewellery categories from Tribes India
+TARGET_CATEGORY_URLS = [
+    "https://tribesindia.com/category/jewellery",
+    "https://tribesindia.com/category/metal-crafts",
+    "https://tribesindia.com/category/tribal-paintings",
+    "https://tribesindia.com/category/pottery",
+    "https://tribesindia.com/category/cane-bamboo-crafts"
+]
 
-def fetch_via_scraperapi(target_url):
-    payload = {
-        'api_key': SCRAPERAPI_KEY,
-        'url': target_url,
-        'country_code': 'in'  # Route through India proxies for accurate Amazon.in / Flipkart data
-    }
-    try:
-        response = requests.get('http://api.scraperapi.com', params=payload, timeout=40)
-        print(f"ScraperAPI Status for {target_url[:35]}... -> {response.status_code}")
-        if response.status_code == 200:
-            return response.text
-        else:
-            print(f"API Error Response: {response.text[:200]}")
-            return None
-    except Exception as e:
-        print(f"Request failed: {e}")
-        return None
+# Exclusion keywords (Food, Grocery, Natural Products)
+FOOD_KEYWORDS = {
+    "food", "rice", "tea", "coffee", "honey", "spice", "soap", "shampoo",
+    "oil", "powder", "ragi", "poha", "natural", "edible", "flour", "ghee", "jam"
+}
 
-def scrape_amazon_flipkart():
-    marketplace_products = []
+# Inclusion keywords (Art, Crafts, Toys, Jewellery)
+ART_TOY_KEYWORDS = {
+    "necklace", "pendant", "earring", "ring", "craft", "metal", "statue",
+    "painting", "pottery", "decor", "toy", "handicraft", "wood", "brass",
+    "figurine", "bamboo", "jewellery", "bangle", "locket"
+}
+
+def is_art_item(title: str, category_url: str) -> bool:
+    """Filters out food items and checks for valid art/craft terms."""
+    combined_text = f"{title} {category_url}".lower()
     
-    # 1. SCRAPE AMAZON
-    amazon_url = "https://www.amazon.in/s?k=tribes+india"
-    html_amazon = fetch_via_scraperapi(amazon_url)
-    
-    if html_amazon:
-        soup = BeautifulSoup(html_amazon, "html.parser")
-        # Universal container for Amazon search results
-        items = soup.find_all("div", {"data-component-type": "s-search-result"})
-        print(f"Found {len(items)} raw Amazon product cards.")
+    # Drop if any food/grocery term matches
+    if any(food_term in combined_text for food_term in FOOD_KEYWORDS):
+        return False
         
-        for item in items:
-            # Flexible selector for title
-            title_elem = item.find("h2") or item.find("span", class_="a-size-medium")
-            price_elem = item.find("span", class_="a-price-whole")
-            link_elem = item.find("a", class_="a-link-normal", href=True)
-            
-            if title_elem:
-                title = title_elem.get_text(strip=True)
-                price = f"₹{price_elem.get_text(strip=True)}" if price_elem else "N/A"
-                
-                href = link_elem["href"] if link_elem else ""
-                product_url = "https://www.amazon.in" + href if href.startswith("/") else href
-                
-                marketplace_products.append({
-                    "platform": "Amazon",
-                    "title": title,
-                    "price_inr": price,
-                    "product_url": product_url,
-                    "last_updated": datetime.now().strftime("%Y-%m-%d")
-                })
-
-    # 2. SCRAPE FLIPKART
-    flipkart_url = "https://www.flipkart.com/search?q=tribes+india"
-    html_flipkart = fetch_via_scraperapi(flipkart_url)
-    
-    if html_flipkart:
-        soup = BeautifulSoup(html_flipkart, "html.parser")
-        # Flipkart product grid containers
-        items = soup.find_all("div", class_="_1AtVbE") or soup.find_all("div", class_="_75Wf1D") or soup.find_all("div", class_="cPHRSc")
-        print(f"Found {len(items)} raw Flipkart product cards.")
+    # Accept if art/craft term matches
+    if any(art_term in combined_text for art_term in ART_TOY_KEYWORDS):
+        return True
         
-        for item in items:
-            title_elem = item.find("a", class_="IRwbT7") or item.find("div", class_="KzA324") or item.find("a", class_="w2-f8f")
-            price_elem = item.find("div", class_="_30jeq3") or item.find("div", class_="Nx9bqj")
-            link_elem = item.find("a", href=True)
-            
-            if title_elem:
-                title = title_elem.get_text(strip=True)
-                price = price_elem.get_text(strip=True) if price_elem else "N/A"
-                
-                href = link_elem["href"] if link_elem else ""
-                product_url = "https://www.flipkart.com" + href if href.startswith("/") else href
-                
-                marketplace_products.append({
-                    "platform": "Flipkart",
-                    "title": title,
-                    "price_inr": price,
-                    "product_url": product_url,
-                    "last_updated": datetime.now().strftime("%Y-%m-%d")
-                })
+    return False
 
-    print(f"Total marketplace items collected: {len(marketplace_products)}")
-    return pd.DataFrame(marketplace_products)
+def scrape_and_save():
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    scraped_products = []
+
+    for cat_url in TARGET_CATEGORY_URLS:
+        print(f"Scraping category: {cat_url}")
+        res = requests.get(cat_url, headers=headers)
+        if res.status_code != 200:
+            continue
+
+        soup = BeautifulSoup(res.content, "html.parser")
+        
+        # Extract product elements (adjust selector based on page DOM)
+        product_cards = soup.find_all("div", class_="product-card") or soup.find_all("li", class_="product")
+
+        for card in product_cards:
+            title_elem = card.find("h2") or card.find("h3") or card.find("a", class_="product-title")
+            price_elem = card.find("span", class_="price")
+            img_elem = card.find("img")
+
+            if not title_elem:
+                continue
+
+            title = title_elem.text.strip()
+
+            # Filter out non-art/food products
+            if not is_art_item(title, cat_url):
+                print(f"Skipped (Food/Grocery): {title}")
+                continue
+
+            price = price_elem.text.strip() if price_elem else "N/A"
+            image_url = urljoin(cat_url, img_elem["src"]) if img_elem and img_elem.get("src") else None
+            local_image_path = None
+
+            # Download raw image binary at the same time as metadata
+            if image_url:
+                clean_title = "".join(c for c in title if c.isalnum() or c in (" ", "_")).rstrip()
+                filename = f"{clean_title.replace(' ', '_')[:25]}.jpg"
+                local_image_path = os.path.join(IMAGE_DIR, filename)
+
+                try:
+                    img_bytes = requests.get(image_url, headers=headers).content
+                    with open(local_image_path, "wb") as f:
+                        f.write(img_bytes)
+                except Exception as e:
+                    print(f"Failed image download for {title}: {e}")
+
+            product_record = {
+                "title": title,
+                "price": price,
+                "category_url": cat_url,
+                "original_image_url": image_url,
+                "local_image_path": local_image_path
+            }
+
+            scraped_products.append(product_record)
+            print(f"Saved product + image: {title}")
+
+    # Output dataset directly inside the repo
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(scraped_products, f, indent=4)
+
+if __name__ == "__main__":
+    scrape_and_save()
