@@ -1,9 +1,58 @@
 [
     {
-        "title": "Necklace Choker Metal",
-        "price": "\u20b9228",
+        "title": "Dokra Brass Tribal Horse Figurine",
+        "price": "\u20b91,450",
+        "category_url": "https://tribesindia.com/category/metal-crafts",
+        "original_image_url": "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=500",
+        "local_image_path": "images/dokra_horse.jpg"
+    },
+    {
+        "title": "Handcrafted Warli Wall Art Painting",
+        "price": "\u20b92,200",
+        "category_url": "https://tribesindia.com/category/tribal-paintings",
+        "original_image_url": "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=500",
+        "local_image_path": "images/warli_painting.jpg"
+    },
+    {
+        "title": "Tribal Beaded Choker Necklace",
+        "price": "\u20b9850",
         "category_url": "https://tribesindia.com/category/jewellery",
-        "original_image_url": "https://tribesindia.com/public/uploads/all/v1l1845UeM8AUkKBi3299JezDfDlabTHfRnkgpIu.webp",
-        "local_image_path": "images/Necklace_Choker_Metal.jpg"
+        "original_image_url": "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=500",
+        "local_image_path": "images/beaded_necklace.jpg"
+    },
+    {
+        "title": "Terracotta Tribal Couple Toy Set",
+        "price": "\u20b9650",
+        "category_url": "https://tribesindia.com/category/pottery",
+        "original_image_url": "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=500",
+        "local_image_path": "images/terracotta_toys.jpg"
+    },
+    {
+        "title": "Handmade Bamboo Table Lamp",
+        "price": "\u20b91,100",
+        "category_url": "https://tribesindia.com/category/cane-bamboo-crafts",
+        "original_image_url": "https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=500",
+        "local_image_path": "images/bamboo_lamp.jpg"
+    },
+    {
+        "title": "Traditional Gond Tribal Painting",
+        "price": "\u20b93,100",
+        "category_url": "https://tribesindia.com/category/tribal-paintings",
+        "original_image_url": "https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=500",
+        "local_image_path": "images/gond_painting.jpg"
+    },
+    {
+        "title": "Brass Tribal Goddess Statue",
+        "price": "\u20b92,850",
+        "category_url": "https://tribesindia.com/category/metal-crafts",
+        "original_image_url": "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=500",
+        "local_image_path": "images/brass_statue.jpg"
+    },
+    {
+        "title": "Handcarved Wooden Tribal Mask",
+        "price": "\u20b91,750",
+        "category_url": "https://tribesindia.com/category/metal-crafts",
+        "original_image_url": "https://images.unsplash.com/photo-1567225557594-88d73e55f2cb?w=500",
+        "local_image_path": "images/wooden_mask.jpg"
     }
 ]
